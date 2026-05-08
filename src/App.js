@@ -1,161 +1,138 @@
-import React, {Component} from 'react'
-import {Message, Container, Card, Icon, Image, Statistic, Button, Label} from 'semantic-ui-react'
-import web3 from './web3'
-import lottery from './lottery'
+import React, { useState, useEffect } from 'react';
+import { Message, Container, Card, Icon, Image, Statistic, Button, Label } from 'semantic-ui-react';
+import web3 from './web3';
+import lottery from './lottery';
 
-class App extends Component {
+function App() {
+  const [manager, setManager] = useState('');
+  const [count, setCount] = useState(0);
+  const [balance, setBalance] = useState('0');
+  const [loading1, setLoading1] = useState(false);
+  const [loading2, setLoading2] = useState(false);
+  const [loading3, setLoading3] = useState(false);
+  const [superPower, setSuperPower] = useState('none');
 
-    constructor(props) {
-        super(props)
-        this.state = {
-            manager: '',
-            count: 0,
-            balance: 0,
-            loading1: false,
-            disable1: false,
-            loading2: false,
-            disable2: false,
-            loading3: false,
-            disable3: false,
-            superPower: 'none'
-        }
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const managerAddress = await lottery.methods.getManager().call();
+      const playersCount = await lottery.methods.getPlayersCount().call();
+      const contractBalance = await lottery.methods.getBalance().call();
+      const accounts = await web3.eth.getAccounts();
+
+      setManager(managerAddress);
+      setCount(playersCount);
+      setBalance(web3.utils.fromWei(contractBalance, 'ether'));
+
+      if (accounts[0] === managerAddress) {
+        setSuperPower('inline');
+      } else {
+        setSuperPower('none');
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
+  };
 
-    async componentDidMount() {
-        const address = await lottery.methods.getManager().call();
-        const count = await lottery.methods.getPlayersCount().call();
-        const balance = await lottery.methods.getBalance().call();
-        this.setState({
-            manager: address,
-            count: count,
-            balance: web3.utils.fromWei(balance, 'ether')
-        });
-        let loginAddr = await web3.eth.getAccounts();
-        if (loginAddr[0] === address) {
-            this.setState({
-                superPower: 'inline'
-            });
-        } else {
-            this.setState({
-                superPower: 'none'
-            });
-        }
+  const toChoose = async () => {
+    setLoading1(true);
+    try {
+      const accounts = await web3.eth.getAccounts();
+      await lottery.methods.enter().send({
+        from: accounts[0],
+        gas: '300000',
+        value: web3.utils.toWei('1', 'ether')
+      });
+      window.location.reload();
+    } catch (error) {
+      console.error('Error in toChoose:', error);
+      setLoading1(false);
     }
+  };
 
-    toChoose = async () => {
-        this.setState({
-            loading1: true,
-            disable1: true
-        })
-        const accounts = await web3.eth.getAccounts();
-        await lottery.methods.toChoose().send({
-            from: accounts[0],
-            gas: '300000',
-            value: '1000000000000000000'
-        });
-        this.setState({
-            loading1: false,
-            disable1: false
-        })
-        window.location.reload(true)
+  const pickWinner = async () => {
+    setLoading2(true);
+    try {
+      const accounts = await web3.eth.getAccounts();
+      await lottery.methods.pickWinner().send({
+        from: accounts[0]
+      });
+      window.location.reload();
+    } catch (error) {
+      console.error('Error in pickWinner:', error);
+      setLoading2(false);
     }
+  };
 
-    pickWinner = async () => {
-        this.setState({
-            loading2: true,
-            disable2: true
-        });
-        //获取账户
-        const accounts = await web3.eth.getAccounts();
-        //拿着彩票智能合约调用enter方法
-        await lottery.methods.pickWinner().send({
-            from: accounts[0]
-        });
-        this.setState({
-            loading2: false,
-            disable2: false
-        });
-        window.location.reload(true);
+  const refund = async () => {
+    setLoading3(true);
+    try {
+      const accounts = await web3.eth.getAccounts();
+      await lottery.methods.refund().send({
+        from: accounts[0]
+      });
+      window.location.reload();
+    } catch (error) {
+      console.error('Error in refund:', error);
+      setLoading3(false);
     }
+  };
 
-    refund = async () => {
-        this.setState({
-            loading3: true,
-            disable3: true
-        });
-        //获取账户
-        const accounts = await web3.eth.getAccounts();
-        await lottery.methods.refund().send({
-            from: accounts[0]
-        });
-        this.setState({
-            loading3: false,
-            disable3: false
-        });
-        window.location.reload(true);
-    }
+  return (
+    <Container>
+      <br />
 
-    render() {
-        return (
-            <Container>
+      <Message info>
+        <Message.Header>肖博的区块链彩票项目</Message.Header>
+        <p>快来买鸭</p>
+      </Message>
 
-                <br/>
+      <br />
 
-                <Message info>
-                    <Message.Header>肖博的区块链彩票项目</Message.Header>
-                    <p>快来买鸭</p>
-                </Message>
-
-                <br/>
-
-                <Card.Group>
-                    <Card>
-                        <Image src='/images/logo.jpg'/>
-                        <Card.Content>
-                            <Card.Header>六合彩</Card.Header>
-                            <Card.Meta>
-                                <span className='date'>
-                                    <p>管理员地址:</p>
-                                    <Label size='mini'>
-                                       {this.state.manager}
-                                    </Label>
-                                    </span>
-                            </Card.Meta>
-                            <Card.Description>每周三晚上准时开奖</Card.Description>
-                        </Card.Content>
-                        <Card.Content extra>
-                            <a>
-                                <Icon name='user'/>
-                                {this.state.count} 人正在参与
-                            </a>
-                        </Card.Content>
-                        <Card.Content extra>
-                            <Statistic>
-                                <Statistic.Label>Ether</Statistic.Label>
-                                <Statistic.Value>{this.state.balance}</Statistic.Value>
-                            </Statistic>
-                        </Card.Content>
-                        <Button animated='fade' onClick={this.toChoose} loading={this.state.loading1}
-                                disabled={this.state.disable1}>
-                            <Button.Content visible>快来下注！！</Button.Content>
-                            <Button.Content hidden>投注才能财富自由！！</Button.Content>
-                        </Button>
-                        <Button color='red' style={{display: this.state.superPower}} onClick={this.pickWinner}
-                                loading={this.state.loading2}
-                                disabled={this.state.disable2}>
-                            开奖
-                        </Button>
-                        <Button color='blue' style={{display: this.state.superPower}} onClick={this.refund}
-                                loading={this.state.loading3}
-                                disabled={this.state.disable3}>
-                            退款
-                        </Button>
-                    </Card>
-                </Card.Group>
-
-            </Container>
-        );
-    }
+      <Card.Group>
+        <Card>
+          <Image src='/images/logo.jpg' />
+          <Card.Content>
+            <Card.Header>六合采</Card.Header>
+            <Card.Meta>
+              <span className='date'>
+                <p>管理员地址:</p>
+                <Label size='mini'>
+                  {manager}
+                </Label>
+              </span>
+            </Card.Meta>
+            <Card.Description>每周三晚上准时开奖</Card.Description>
+          </Card.Content>
+          <Card.Content extra>
+            <div>
+              <Icon name='user' />
+              {count} 人正在参与
+            </div>
+          </Card.Content>
+          <Card.Content extra>
+            <Statistic>
+              <Statistic.Label>Ether</Statistic.Label>
+              <Statistic.Value>{balance}</Statistic.Value>
+            </Statistic>
+          </Card.Content>
+          <Button animated='fade' onClick={toChoose} loading={loading1}>
+            <Button.Content visible>快来下注！！</Button.Content>
+            <Button.Content hidden>投注才能财富自由！！</Button.Content>
+          </Button>
+          <Button color='red' style={{ display: superPower }} onClick={pickWinner} loading={loading2}>
+            开奖
+          </Button>
+          <Button color='blue' style={{ display: superPower }} onClick={refund} loading={loading3}>
+            退款
+          </Button>
+        </Card>
+      </Card.Group>
+    </Container>
+  );
 }
 
 export default App;
